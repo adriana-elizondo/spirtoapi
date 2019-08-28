@@ -8,14 +8,12 @@
 import Foundation
 import CouchDB
 
-struct MenuItemsResponse: Codable{
-    var items: [MenuItem]?
-}
 struct MenuItem: Document{
     let _id: String?
     let _rev: String?
     
-    var name: String
+    var itemName: String
     var price: Float
     var imageUrl: String
+    var category: Category
 }

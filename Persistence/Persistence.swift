@@ -10,6 +10,37 @@ import CouchDB
 import LoggerAPI
 
 class Persistence<T: Document>{
+    static func createIndexForUsers(in database: Database, with request: IndexRequest, with completion: @escaping (IndexResponse?, Error?) -> Void) {
+        database.createIndex(parameters: request) { (response, error) in
+            completion(response, error)
+        }
+    }
+    static func queryExistingUsers(from database: Database, with email: String, with completion: @escaping (User?) -> Void) {
+        var findRequest = FindRequest<[String: String]>()
+        let selector = ["email": email]
+        findRequest.selector = selector
+        findRequest.use_index = "user-doc/user-email-index"
+        database.find(parameters: findRequest) { (response: FindResponse<User>?, error) in
+            if let response = response {
+                return completion(response.docs?.first)
+            }
+            completion(nil)
+        }
+    }
+    static func getSingle(from database: Database, with itemID: String, callback:
+        @escaping (_ items: T?, _ error: Error?) -> Void) {
+        database.retrieve(itemID) { (item: T?, error: CouchDBError?) in
+            guard item != nil, let _ = item?._rev else {
+                Log.error("Error retrieving document: \(String(describing:error))")
+                return callback(nil, error)
+            }
+            callback(item, nil)
+        }
+    }
+    static func getSingle(from database: Database, with keyValue: [String: String], callback:
+        @escaping (_ items: T?, _ error: Error?) -> Void) {
+       
+    }
     static func getAll(from database: Database, callback:
         @escaping (_ items: [T]?, _ error: Error?) -> Void) {
         database.retrieveAll(includeDocuments: true) { documents, error in
@@ -30,6 +61,13 @@ class Persistence<T: Document>{
                 return callback(nil, error)
             }
             database.retrieve(document.id, callback: callback)
+        }
+    }
+    
+    static func update(_ item: T, in database: Database, to newItem: T,
+                       callback: @escaping (_ success: Bool, _ error: Error?) -> Void) {
+        database.update(item._id ?? "", rev: item._rev ?? "", document: newItem) { (response, error) in
+            callback(response?.ok ?? false, error)
         }
     }
     

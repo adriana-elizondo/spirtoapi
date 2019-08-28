@@ -6,3 +6,11 @@
 //
 
 import Foundation
+import CouchDB
+
+struct Category: Document{
+    let _id: String?
+    let _rev: String?
+    
+    var categoryName: String
+}

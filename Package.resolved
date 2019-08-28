@@ -42,8 +42,8 @@
         "repositoryURL": "https://github.com/IBM-Swift/HeliumLogger.git",
         "state": {
           "branch": null,
-          "revision": "779865e83149a59894b14950aa83f70b7e81bc27",
-          "version": "1.8.1"
+          "revision": "146a36c2a91270e4213fa7d7e8192cd2e55d0ace",
+          "version": "1.9.0"
         }
       },
       {
