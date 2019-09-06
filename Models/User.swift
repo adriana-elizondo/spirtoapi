@@ -13,9 +13,10 @@ struct User: Document{
     let _rev: String?
     
     var name: String
-    var email: String
-    var phoneNumber: String
-    var photoUrl: String
+    var email: String?
+    var birthday: String?
+    var phoneNumber: String?
+    var photoUrl: String?
     var addresses: [Address]?
 }
 
