@@ -13,11 +13,16 @@ struct User: Document{
     let _rev: String?
     
     var name: String
-    var email: String?
+    var email: String
     var birthday: String?
     var phoneNumber: String?
     var photoUrl: String?
     var addresses: [Address]?
+}
+
+struct AddressPostParameters: Codable {
+    var address: Address
+    var userEmail: String
 }
 
 struct Address: Document{

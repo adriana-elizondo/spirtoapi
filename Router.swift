@@ -33,6 +33,7 @@ func initializeRoutes(app: App) {
     //items
     app.router.get("/menuItems", handler: getMenuItems)
     app.router.post("/menuItem", handler: addMenuItem)
+    app.router.put("/menuItemUpdate", handler: updateItem)
     app.router.delete("/menuItem", handler: deleteMenuItem)
     
     //categories
@@ -41,7 +42,9 @@ func initializeRoutes(app: App) {
     app.router.delete("/category", handler: deleteCategory)
     
     //addressess
+    app.router.get("/allAddressess", handler: getAllAddresses)
     app.router.get("/addressess", handler: getAddresses)
+    app.router.post("/address", handler: addAddress)
     app.router.delete("/address", handler: deleteAddress)
     
     //user
@@ -58,7 +61,15 @@ private func getMenuItems(completion: @escaping (CommonResponse<MenuItem>?,
     RequestError?) -> Void) {
     genericGetItems(completion: completion)
 }
-
+private func updateItem(id: String, item: MenuItem, completion: @escaping (CommonResponse<MenuItem>?,
+    RequestError?) -> Void){
+    genericUpdate(with: id, to: item) { (response, error) in
+        if let itemResponse = response {
+            return completion(itemResponse, nil)
+        }
+        completion(nil, RequestError.notFound)
+    }
+}
 private func addMenuItem(item: MenuItem, completion: @escaping (MenuItem?,
     RequestError?) -> Void){
     genericAddItem(item: item, completion: completion)
@@ -84,16 +95,36 @@ private func deleteCategory(id: String, completion: @escaping (RequestError?) ->
 }
 
 //Addressess
-private func getAddresses(id: String, completion: @escaping (CommonResponse<Address>?,
+private func getAllAddresses(completion: @escaping (CommonResponse<Address>?,
     RequestError?) -> Void) {
-    guard let database = database else {
-        return completion(nil, RequestError.internalServerError)
+    genericGetItems(completion: completion)
+}
+private func getAddresses(email: String, completion: @escaping (CommonResponse<Address>?,
+    RequestError?) -> Void) {
+    getUser(email: email) { (user, error) in
+        guard error == nil else {completion(nil, error); return}
+        return completion(CommonResponse(itemsReturned: user?.itemReturned.addresses ?? []), error)
     }
-    Persistence<User>.getSingle(from: database, with: id)
-    { (user, error) in
-        guard error == nil else {completion(nil, error as? RequestError); return}
-        return completion(CommonResponse(itemsReturned: user?.addresses ?? []), error as? RequestError)
+}
+private func addAddress(item: AddressPostParameters, completion: @escaping (CommonSingleResponse<Address>?,
+    RequestError?) -> Void){
+    getUserWithEmail(with: item.userEmail) { (user, error) in
+        guard var newuser = user?.itemReturned else { return completion(nil, error)}
+        genericAddItem(item: item.address, completion: { (address, error) in
+            if let address = address {
+                if newuser.addresses == nil {
+                    newuser.addresses = [Address]()
+                }
+                newuser.addresses?.append(address)
+                updateUser(id: newuser._id ?? "", user: newuser, completion: { (user, error) in
+                    guard error == nil else { return completion(nil, error) }
+                    return completion(CommonSingleResponse(itemReturned: address), nil)
+                })
+            }
+            return completion(nil, error)
+        })
     }
+   
 }
 
 private func deleteAddress(id: String, completion: @escaping (RequestError?) -> Void){
@@ -101,10 +132,23 @@ private func deleteAddress(id: String, completion: @escaping (RequestError?) -> 
 }
 
 //User
-private func getUser(with id: String, completion: @escaping (CommonResponse<User>?,
+private func getUser(email: String, completion: @escaping (CommonSingleResponse<User>?,
     RequestError?) -> Void) {
-    genericGetItem(with: id) { (document, error) in
-        completion(document, error as? RequestError)
+    getUserWithEmail(with: email, completion: completion)
+}
+
+private func getUserWithEmail(with email: String,
+                              completion: @escaping (CommonSingleResponse<User>?,
+    RequestError?) -> Void) {
+    guard let database = database else {
+        return completion(nil, RequestError.internalServerError)
+    }
+    Persistence<User>.queryExistingUsers(from: database, with: email) { (existingUser) in
+        if let user = existingUser {
+            return completion(CommonSingleResponse(itemReturned: user), nil)
+        }
+        
+        return completion(nil, RequestError.expectationFailed)
     }
 }
 
@@ -128,8 +172,19 @@ private func addUser(item: User, completion: @escaping (CommonSingleResponse<Use
     guard let database = database else {
         return completion(nil, RequestError.internalServerError)
     }
-    Persistence<User>.queryExistingUsers(from: database, with: item.email ?? "") { (existingUser) in
-        guard existingUser == nil else { return completion(CommonSingleResponse(itemReturned: existingUser!), nil)}
+    Persistence<User>.queryExistingUsers(from: database, with: item.email) { (existingUser) in
+        guard existingUser == nil else {
+            var userToUpdateTo = item
+            userToUpdateTo.addresses = existingUser?.addresses
+            return updateUser(id: existingUser?._id ?? "" , user: userToUpdateTo, completion: { (response, error) in
+                if let updatedUser = response?.itemsReturned.first {
+                   return completion(CommonSingleResponse(itemReturned: updatedUser), nil)
+                }
+                
+                return completion(nil, error)
+            })
+        }
+        
         genericAddItem(item: item, completion: { (user, error) in
             if let user = user {
                 return completion(CommonSingleResponse(itemReturned: user), nil)

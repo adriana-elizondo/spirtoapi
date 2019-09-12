@@ -13,6 +13,7 @@ struct MenuItem: Document{
     let _rev: String?
     
     var itemName: String
+    var itemDescription: String
     var price: Float
     var imageUrl: String
     var category: Category
